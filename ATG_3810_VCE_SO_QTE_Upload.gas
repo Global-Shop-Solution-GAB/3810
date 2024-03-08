@@ -1,0 +1,1280 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.sDir.Declare(String)
+Variable.Global.sHistoryDir.Declare(String)
+Variable.Global.sFile.Declare(String)
+Variable.Global.sServer.Declare(String)
+Variable.UDT.uCust.Define("Cust",String,CUSTOMER)
+Variable.uGlobal.uCust.Declare("uCust")
+Variable.Global.sErrorDir.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sDir.Declare(String)
+V.Local.iRet.Declare(Long)
+V.Local.bExists.Declare(Boolean)
+V.local.sReturn.Declare(String)
+V.Local.iL.Declare(Long)
+V.Local.sFile.Declare(String)
+V.Local.iStatus.Declare(String)
+V.Local.sMsg.Declare(String)
+V.local.sHist.Declare(String)
+V.Local.sErrorDir.Declare(String)
+
+'F.Intrinsic.Debug.InvokeDebugger
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.UI.InvokeWaitDialog("Uploading Quote Master...")
+
+F.Intrinsic.Control.CallSub(Filepath)
+F.Intrinsic.Control.CallSub(Load_udt)
+
+''Get Global Dir
+'F.Intrinsic.String.InstrRev(V.Caller.PluginsDir,"\plugins",V.Local.iRet)
+'F.Intrinsic.String.Left(V.Caller.PluginsDir,V.Local.iRet,V.Local.sDir)
+'Concat file path to Global Dir
+F.Intrinsic.String.Concat(V.Global.sServer,"DCT_QUOTE\",V.Caller.CompanyCode,V.Global.sDir)
+F.Intrinsic.String.Concat(V.Global.sServer,"DCT_QUOTE\HISTORY\",V.Caller.CompanyCode,V.Global.sHistoryDir)
+F.Intrinsic.String.Concat(V.Global.sServer,"DCT_QUOTE\ERROR_LOG\",V.Caller.CompanyCode,V.Global.sErrorDir)
+
+'Check to make sure Dir exists. If not, exit program.
+F.Intrinsic.File.DirExists(V.Global.sDir,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists,=,False)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Concat(V.Global.sDir,"\",V.Global.sDir)
+
+'Get file list in that Dir, loop through files
+F.Intrinsic.File.GetFileList(V.Global.sDir,V.Local.sReturn)
+F.Intrinsic.Control.If(V.local.sReturn,<>,"")
+	F.Intrinsic.String.Split(V.Local.sReturn,":",V.Local.sReturn)
+
+	F.Intrinsic.Control.For(V.Local.iL,0,V.Local.sReturn.UBound,1)
+		
+		V.global.sFile.Set(V.Local.sReturn(v.Local.iL))
+
+		F.Intrinsic.String.Concat(V.Global.sDir,V.Global.sFile,V.Local.sFile)
+		F.Intrinsic.String.Concat(V.global.sHistoryDir,"\",V.Global.sFile,V.Local.sHist)
+		F.Intrinsic.String.Concat(V.Global.sErrorDir,"\",V.Global.sFile,V.Local.sErrorDir)
+		F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bExists)
+		F.Intrinsic.Control.If(V.Local.bExists,=,True)
+	
+			F.Intrinsic.String.Concat("Uploading Quote Master file ",V.Global.sFile,V.Local.sMsg)
+			F.Intrinsic.UI.ChangeWaitStatus(V.Local.sMsg,V.Local.iL,1,V.Local.sReturn.UBound)
+			F.Intrinsic.Control.CallSub(Buildstring,"sFile",V.Local.sFile,"sHist",V.Local.sHist,"sError",V.Local.sErrorDir)
+			
+		F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.Next(V.Local.iL)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.UI.CloseWaitDialog
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.BuildString.Start
+F.Intrinsic.Control.SetErrorHandler("BuildString_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sText.Declare(String)
+V.Local.iL.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sString.Declare(String)
+V.Local.sParam.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sQuoteLine.Declare(String)
+V.Local.sSOLine.Declare(String)
+V.Local.iRet.Declare(Long)
+
+V.Local.sFile.Set(V.Args.sFile)
+
+F.Intrinsic.File.File2String(V.local.sFile,V.Local.sText)
+F.Intrinsic.String.Split(V.Local.sText,V.Ambient.NewLine,V.Local.sText)
+
+F.Intrinsic.Control.For(V.Local.iL,0,V.Local.sText.UBound,1)
+	F.Intrinsic.Control.If(V.Local.sText(v.Local.iL),<>,"")
+		F.Intrinsic.Control.If(V.Local.iL,=,0)
+			F.Intrinsic.Control.CallSub(Quotea,"sLine",V.Local.sText(0))
+			F.Intrinsic.Control.If(V.Args.bError,=,True)
+				F.Intrinsic.Control.CallSub(Errorlog,"sSource",V.Local.sFile,"sTarget",V.args.sError)
+				F.Intrinsic.Control.ExitFor(V.Local.iL)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.CallSub(Soa,"sLine",V.Local.sText(0))
+		F.Intrinsic.Control.ElseIf(V.Local.iL,=,1)
+			'B Record
+			F.Intrinsic.Control.CallSub(Quoteb,"sLine",V.Local.sText(1))
+			F.Intrinsic.Control.CallSub(Sob,"sLine",V.Local.sText(1))
+		F.Intrinsic.Control.ElseIf(V.Local.iL,=,2)
+			'C Record
+			F.Intrinsic.Control.CallSub(Quotec,"sLine",V.Local.sText(2))
+			F.Intrinsic.Control.CallSub(Soc,"sLine",V.Local.sText(2))
+		F.Intrinsic.Control.Else
+			'Line
+			F.Intrinsic.Control.CallSub(Quoteline,"sLine",V.Local.sText(v.Local.iL))
+			F.Intrinsic.String.Concat(V.Local.sQuoteLine,V.Args.sQuoteLine,V.Ambient.NewLine,V.Local.sQuoteLine)
+
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iL)
+
+F.Intrinsic.Control.If(V.Args.bError,<>,True)
+
+	F.Intrinsic.String.Concat(V.Args.sQuoteA,V.Ambient.NewLine,V.Args.sQuoteB,V.Ambient.NewLine,V.Args.sQuoteC,V.Ambient.NewLine,V.Local.sQuoteLine,V.local.sQuoteLine)
+	F.Intrinsic.String.Concat(V.Args.sSOA,V.Ambient.NewLine,V.Args.sSOB,V.Ambient.NewLine,V.Args.sSOC,V.local.sSOLine)
+
+	'F.Intrinsic.Debug.InvokeDebugger
+	F.Intrinsic.Debug.Stop
+
+
+	F.Intrinsic.String.Concat(V.Caller.FilesDir,"\QUOTE.TXT",V.Local.sParam)
+	F.Intrinsic.File.String2File(V.Local.sParam,V.Local.sQuoteLine)
+
+	F.Intrinsic.File.Exists(V.Local.sParam,V.Local.bExists)
+	F.Intrinsic.Control.If(V.Local.bExists,=,True)
+		F.Intrinsic.String.Concat(V.Caller.CompanyCode,"1UPLQUOTE",V.Local.sParam)
+		F.Intrinsic.Task.LaunchGSSSync("UPL001A","-c",V.Local.sParam)
+	'	F.Global.General.CallWrapperSync(50,"UPLQUOTE")
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.String.Concat(V.Caller.FilesDir,"\SALESHDR.TXT",V.Local.sParam)
+	F.Intrinsic.File.String2File(V.Local.sParam,V.Local.sSOLine)
+
+	F.Intrinsic.File.Exists(V.Local.sParam,V.Local.bExists)
+	F.Intrinsic.Control.If(V.Local.bExists,=,True)
+		F.Global.General.CallWrapperSync(50,"UPLSALES/C")
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.File.MoveFile(V.Local.sFile,V.Args.sHist,V.Local.iRet)
+
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("BuildString_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.BuildString.End
+
+Program.Sub.QuoteA.Start
+F.Intrinsic.Control.SetErrorHandler("QuoteA_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sText.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sHeader.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Quote Number 1-7 7
+F.Intrinsic.Control.If(V.Local.sText(0).IsNumeric,=,True)
+	F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+F.Intrinsic.Control.Else
+	F.Intrinsic.Variable.AddRV("bError",True)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'Filler Not In Use 8-10 3
+'Record Type Always A 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   A",V.Local.sHeader)
+
+'Customer Number 12-17 6
+F.Intrinsic.Control.CallSub(Check_cust,"cust",V.Local.sText(2))
+F.Intrinsic.Control.If(V.Args.bRet,=,False)
+	'Customer is not in customer master
+	F.Intrinsic.Variable.AddRV("bError",True)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.ElseIf(V.Local.sText(2).IsNumeric,=,False)
+	F.Intrinsic.Variable.AddRV("bError",True)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.LPad(V.Local.sText(2)," ",7,V.Local.sTemp)
+	F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To ID 18-23 6
+F.Intrinsic.String.RPad(V.Local.sText(3)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Quote Date MMDDYY 24-29 6
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sText(4),V.Local.sHeader)
+
+'Due Date MMDDYY 30-35 6
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sText(5),V.Local.sHeader)
+
+'Purchase Order / Reference 36-50 15
+F.Intrinsic.String.RPad(V.Local.sText(6)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Mark Information 51-80 30
+F.Intrinsic.String.RPad(" "," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'FOB Information 81-94 14
+F.Intrinsic.String.RPad(V.Local.sText(7)," ",14,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Terms 95-104 10
+F.Intrinsic.String.RPad(V.Local.sText(8)," ",10,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Last Item No. (Last Line Number) 105-108 4
+F.Intrinsic.String.LPad(V.Local.sText(9),"0",4,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Sort Code 1 109-128 20
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Who Got It 129-148 20
+F.Intrinsic.String.RPad(" "," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'User Field 1 149-178 30
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'User Field 2 179-208 30
+'User Field 3 209-238 30
+'User Field 4 239-268 30
+'User Field 5 269-298 30
+'Sales Representative Code 299-301 3
+'Branch 302-303 2
+'Area 304-305 2
+'Freight Zone 306-315 10
+F.Intrinsic.String.RPad(" "," ",137,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship Via 316-335 20
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+
+'Quote Discount Percentage 1.4 336-351 16
+'Price Class Discount Code 352-352 1
+'Price Class Discount Percentage 1.4 353-368 16
+'Commission Rate Type 369-373 5
+'GL Account 374-388 15
+F.Intrinsic.String.RPad(" "," ",53,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Tax State 389-390 2
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Tax Authority 1 391-393 3
+'Tax Authority 2 394-396 3
+'Tax Authority 3 397-399 3
+'Tax Authority 4 400-402 3
+'Tax Authority 5 403-405 3
+'Tax Authority 6 406-408 3
+'Tax Authority 7 409-411 3
+'Tax Authority 8 412-414 3
+'Tax Authority 9 415-417 3
+'Tax Authority 10 418-420 3
+'Tax Apply Flag 1 421-421 1
+'Tax Apply Flag 2 422-422 1
+'Tax Apply Flag 3 423-423 1
+'Tax Apply Flag 4 424-424 1
+'Tax Apply Flag 5 425-425 1
+'Tax Apply Flag 6 426-426 1
+'Tax Apply Flag 7 427-427 1
+'Tax Apply Flag 8 428-428 1
+'Tax Apply Flag 9 429-429 1
+'Tax Apply Flag 10 430-430 1
+'Sort Code 2  431-460 30
+'Time & Material Flag Y/N 461-461 1
+F.Intrinsic.String.RPad(" "," ",71,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Company Currency Code 462-464 3
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Catalog Currency Code 465-467 3
+F.Intrinsic.String.RPad(" "," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Quote Currency Code 468-470 3
+F.Intrinsic.String.RPad(V.Local.sText(15)," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+
+'Exchange Date 1 CCYYMMDD 471-478 8
+'Exchange Rate 1 5.5 479-494 16
+'Exchange Date 2 CCYYMMDD 495-502 8
+'ExchangeRate25.5503-51816
+'Exchange Date 3 CCYYMMDD 519-526 8
+'Exchange Rate 3 5.5527-542 16
+'Exchange Date 4 543-550 8
+'Exchange Rate 4 5.5 551-566 16
+'Carrier Code 567-572 6
+'3rd Party Freight Customer 573-579 7
+F.Intrinsic.String.RPad(" "," ",109,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+F.Intrinsic.Debug.Stop
+
+
+F.Intrinsic.Variable.AddRV("sQuoteA",V.Local.sHeader)
+
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("QuoteA_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.QuoteA.End
+
+Program.Sub.QuoteB.Start
+F.Intrinsic.Control.SetErrorHandler("QuoteB_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sHeader.Declare(String)
+V.Local.sText.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Quote Number 1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 8-10 3
+'Record Type If the next two fields are blank, the system will populate them with the data from Record ‘A’. Always B 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   B",V.Local.sHeader)
+
+'Customer Number 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To ID Leave blank if using the default ship-to address.  18-23 6
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Name 24-53 30
+F.Intrinsic.String.RPad(V.Local.sText(4)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Address 1 54-83 30
+F.Intrinsic.String.RPad(V.Local.sText(5)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Address 2 84-113 30
+'Bill-To Address 3 114-143 30
+'Bill-To Address 4 144-173 30
+'Bill-To Address 5 174-203 30
+F.Intrinsic.String.RPad(" "," ",120,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To City 204-218 15
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To State 219-220 2
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Zip 221-233 13
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",13,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Country 234-245 12
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",12,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Attention 246-275 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Contact Name 276-305 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Contact Phone No Dashes 306-325 30
+'Contact Email 326-425 100
+F.Intrinsic.String.RPad(" "," ",130,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'International Address Flag Y/N  426-426 1
+F.Intrinsic.String.RPad(V.Local.sText(16)," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sQuoteB",V.Local.sHeader)
+
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("QuoteB_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.QuoteB.End
+
+Program.Sub.QuoteC.Start
+F.Intrinsic.Control.SetErrorHandler("QuoteC_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sHeader.Declare(String)
+V.Local.sText.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Quote Number 1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 8-10 3
+'Record Type If the next two fields are blank, the system will populate them with the data from Record ‘A’. Always C 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   C",V.Local.sHeader)
+
+'Customer Number 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To ID Leave blank if using the default ship-to address.  18-23 6
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Name 24-53 30
+F.Intrinsic.String.RPad(V.Local.sText(4)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Address 1 54-83 30
+F.Intrinsic.String.RPad(V.Local.sText(5)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Address 2 84-113 30
+'Ship-To Address 3 114-143 30
+'Ship-To Address 4 144-173 30
+'Ship-To Address 5 174-203 30
+F.Intrinsic.String.RPad(" "," ",120,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To City 204-218 15
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To State 219-220 2
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Zip 221-233 13
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",13,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Country 234-245 12
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",12,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Attention 246-275 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Sales Representative Code 276-278 3
+'Branch 279-280 2
+'Area 281-282 2
+'Freight Zone 283-292 10
+'Ship Via 293-312 20
+'Quote Discount Percentage 1.4 313-328 16
+'Price Class Code 329-329 1
+'Price Class Discount Percentage 1.4 330-345 16
+'Commission Rate Type 346-350 5
+'GL Account Only 10-characters can be used at this time. 351-365 15
+'Tax State 366-367 2
+'Tax Authority 1 368-370 3
+'Tax Authority 2 371-373 3
+'Tax Authority 3 374-376 3
+'Tax Authority 4 377-379 3
+'Tax Authority 5 380-382 3
+'Tax Authority 6 383-385 3
+'Tax Authority 7 386-388 3
+'Tax Authority 8 389-391 3
+'Tax Authority 9 392-394 3
+'Tax Authority 10  395-397 3
+'Tax Apply Flag 1 398-398 1
+'Tax Apply Flag 2 399-399 1
+'Tax Apply Flag 3 400-400 1
+'Tax Apply Flag 4 401-401 1
+'Tax Apply Flag 5 402-402 1
+'Tax Apply Flag 6 403-403 1
+'Tax Apply Flag 7 404-404 1
+'Tax Apply Flag 8 405-405 1
+'Tax Apply Flag 9 406-406 1
+'Tax Apply Flag 10 407-407 1
+F.Intrinsic.String.RPad(" "," ",132,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sText,V.local.sTemp,V.Local.sText)
+
+'International Address Flag Enter ‘Y’ if Ship To Address is International. Y/N 408-408 1
+F.Intrinsic.String.RPad(V.Local.sText(17)," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Carrier Code Validated against Carrier Code Table Must match ‘A’ record unless ‘C’ record is not the default Ship-To code. 409-414 6
+'3rd Party Freight Customer 415-421 7
+'Filler Not In Use 422-857 436
+F.Intrinsic.String.RPad(" "," ",449,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sText,V.local.sTemp,V.Local.sText)
+
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sQuoteC",V.Local.sHeader)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("QuoteC_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.QuoteC.End
+
+Program.Sub.QuoteLine.Start
+F.Intrinsic.Control.SetErrorHandler("QuoteLine_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sText.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Quote Number 1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Line number 001-999 8-10 3
+F.Intrinsic.String.LPad(V.Local.sText(1),"0",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Record Type Always L 11-11 1
+F.Intrinsic.String.Concat(V.Local.sLine,"L",V.Local.sLine)
+
+'Customer Number 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(3)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Customer Ship-To ID 18-23 6
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Type S – Standard Line record F – Freight Line record S/F 24-24 1
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sText(5),V.Local.sLine)
+
+'Quantity Ordered 9.4 25-43 19
+F.Intrinsic.String.Format(V.Local.sText(6),"000000000.0000",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Quantity Fraction (Weight) 7.3 44-59 16
+'Unit of Measure 60-61 2
+F.Intrinsic.String.RPad(" "," ",18,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Part Number 62-81 20
+F.Intrinsic.String.RPad(V.Local.sText(7)," ",20,V.Local.stemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Quote Won or Loss W/L 82-82 1
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sText(8),V.Local.sLine)
+
+'Price 10.6 83-101 19
+F.Intrinsic.String.Format(V.Local.sText(9),"0000000000.000000",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Cost 10.6 102-120 19
+'Sort Code 121-132 12
+F.Intrinsic.String.RPad(" "," ",31,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Part Description 133-162 30
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",30,V.Local.stemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'User Field 1 163-192 30
+'User Field 2 193-222 30
+'User Field 3 223-252 30
+'User Field 4 253-282 30
+'User Field 5 283-312 30
+'Part Location 313-314 2
+'Got It Price 10.6 315-333 19
+F.Intrinsic.String.RPad(" "," ",171,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Quote (Order) Discount Percentage 1.4 334-349 16
+F.Intrinsic.String.Format(V.Local.sText(11),"0.0000",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",16,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Uses Ship Code Y/N 350-350 1
+'Price Class Discount Percentage 1.4 351-366 16
+'Commission Rate Type 367-371 5
+'Normal GL Account 372-386 15
+'Tax State 387-388 20
+'Tax Authority 1 389-391 3
+'Tax Authority 2 392-394 3
+'Tax Authority 3 395-397 3
+'Tax Authority 4 398-400 3
+'Tax Authority 5 401-403 3
+'Tax Authority 6 404-406 3
+'Tax Authority 7 407-409 3
+'Tax Authority 8 410-412 3
+'Tax Authority 9 413-415 3
+'Tax Authority 10 416-418 3
+'Tax Apply Flag 1 419-419 1
+'Tax Apply Flag 2 420-420 1
+'Tax Apply Flag 3 421-421 1
+'Tax Apply Flag 4 422-422 1
+'Tax Apply Flag 5 423-423 1
+'Tax Apply Flag 6 424-424 1
+'Tax Apply Flag 7 425-425 1
+'Tax Apply Flag 8 426-426 1
+'Tax Apply Flag 9 427-427 1
+'Tax Apply Flag 10 428-428 1
+'Original Quantity 9.4 429-447 19
+'Inventory Bin 448-451 4
+'Group 452-461 10
+'Order Date CCYYMMDD 462-469 8
+'Item Promise Date MMDDYY 470-475 6
+'Tax Status Flag E - Exempt T - Taxable E/T 476-476 1
+'Customer Part Number 477-508 32
+'Info Field 1 509-528 32
+'Info Field 2 529-548 20
+F.Intrinsic.String.RPad(" "," ",199,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Order Currency Code 549-551 3
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",3,V.Local.stemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Extended Price (Extension) Note: Not shown as required in Data Conversion Mapper. 14.2 552-570 19
+'BOM Switch C – Component N – Non-BOM item Y – BOM parent 571-571 1
+'BOM Parent 572-575 4
+'Product Line 576-577 2
+'Filler Not In Use 578-578 1
+'Product Line Discount Percentage 1.4 579-594 16
+F.Intrinsic.String.RPad(" "," ",43,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Discount Amount This is the total discount amount for this quote (i.e. the sum of Order, Price Class, and Product Line Discount Amounts). 10.2 595-613 19
+F.Intrinsic.String.Format(V.Local.sText(13),"0000000000.00",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Discount Price *This field is required if you use any discounts. This is the actual price the part is sold for after all discounts have been applied. 10.6 614-632 19
+F.Intrinsic.String.Format(V.Local.sText(14),"0000000000.000000",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Quote (Order) Discount Amount *If a quote Discount rate is entered above, this field is required. 10.2 633-651 19
+F.Intrinsic.String.Format(V.Local.sText(15),"0000000000.00",V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'Price Class Discount Amount *If a Price Class Discount rate is entered above, this field is required. 10.2 652-670 19
+'Product Line Discount Amount *If a Product Line Discount rate is entered above, this field is required. 10.2 671-689 19
+'Cur Freight per Piece 5.6 690-705 16
+'Cur Price 1.6 706-724 19
+'Cur Discount price 10.6 725-743 19
+'Cur Price per Pound 10.6 744-762 19
+'Cur Extension 14.2 763-781 19
+'Cur Discount Amount 10.2 782-800 19
+'Cur Order Discount Amount 10.2 801-819 19
+'Cur Price Class Discount Amount 10.2 820-838 19
+'Cur Product Line Discount Amount 10.2 839-857 19
+F.Intrinsic.String.RPad(" "," ",206,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.local.sLine,V.Local.sTemp,V.Local.sLine)
+
+'F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sQuoteLine",V.Local.sLine)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("QuoteLine_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.QuoteLine.End
+
+Program.Sub.SOA.Start
+F.Intrinsic.Control.SetErrorHandler("SOA_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sHeader.Declare(String)
+V.Local.sText.Declare(String)
+V.Local.sTemp.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Order Number  1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 8-10 3
+'Record Type 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   A",V.Local.sHeader)
+
+'Customer ID 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To ID 18-23 6
+F.Intrinsic.String.RPad(V.Local.sText(3)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 24-29 6
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Order Date MMDDYY 30-35 6
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sText(4),V.Local.sHeader)
+
+'Due Date MMDDYY 36-41 6
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sText(5),V.Local.sHeader)
+
+'Insurance Flag Y/N 42-42 1
+'Order Type Spaces – Regular X– Invoice Only 43-43 1
+'Sequence Always Zero 44-47 4
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Purchase Order 48-62 15
+F.Intrinsic.String.RPad(V.Local.sText(6)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Mark Shipment 63-92 30
+F.Intrinsic.String.RPad(" "," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'FOB Point 93-106 14
+F.Intrinsic.String.RPad(V.Local.sText(7)," ",14,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Terms  107-116 10
+F.Intrinsic.String.RPad(V.Local.sText(8)," ",10,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Waybill Number 117-135 19
+F.Intrinsic.String.RPad(" "," ",19,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Last Item No. (Last line number) 136-139 4
+F.Intrinsic.String.LPad(V.Local.sText(9),"0",4,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Shipped Date MMDDYY 140-145 6
+'Print Spaces 146-146 1
+'Order Sort 147-166 20
+'Shipped Flag Spaces 167-167 1
+'Cartons Zero 168-170 3
+'Weight 5.2, Zero 171-186 16
+'Certificate Enclosed Spaces 187-187 1
+F.Intrinsic.String.RPad(" "," ",48,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'User Field 1 188-217 30
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'User Field 2 218-247 30
+'User Field 3 248-277 30
+'User Field 4 278-307 30
+'User Field 5 308-337 30
+'No Back Order Flag Y/N 338-338 1
+'Sales Representative Code 339-341 3
+'Branch 342-343 2
+'Area / Territory 344-345 2
+'Freight Zone 346-355 10
+F.Intrinsic.String.RPad(" "," ",138,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship Via 356-375 20
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Order Discount Percentage 1.4 376-391 16
+'Price Class Code 392-392 1
+'Price Class Discount Percentage 1.4 393-408 16
+'Commission Rate Type 409-413 5
+'Normal GL Account 414-418 15
+F.Intrinsic.String.RPad(" "," ",53,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Tax State 429-430 2
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Tax Authority 1 431-433 3
+'Tax Authority 2 434-436 3
+'Tax Authority 3 437-439 3
+'Tax Authority 4 440-442 3
+'Tax Authority 5 443-445 3
+'Tax Authority 6 446-448 3
+'Tax Authority 7 449-451 3
+'Tax Authority 8 452-454 3
+'Tax Authority 9 455-457 3
+'Tax Authority 10 458-460 3
+'Tax Apply Flag 1 461-461 1
+'Tax Apply Flag 2 462-462 1
+'Tax Apply Flag 3 463-463 1
+'Tax Apply Flag 4 464-464 1
+'Tax Apply Flag 5 465-465 1
+'Tax Apply Flag 6 466-466 1
+'Tax Apply Flag 7 467-467 1
+'Tax Apply Flag 8 468-468 1
+'Tax Apply Flag 9 469-469 1
+'Tax Apply Flag 10 470-470 1
+'Contact Number 471-476 6
+'Order Sort 2 477-506 30
+F.Intrinsic.String.RPad(" "," ",76,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Quote Number 507-513 7
+F.Intrinsic.String.RPad(V.Local.sText(0)," ",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Time & Material Flag Y/N 514-514 1
+F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Company Currency Code Y/N 515-517 3
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Catalog Currency Code  518-520 3
+F.Intrinsic.String.RPad(" "," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Order Currency Code 521-523 3
+F.Intrinsic.String.RPad(V.Local.sText(15)," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Exchange Date 1 CCYYMMDD 524-531 8
+'Exchange Rate 1 5.5 532-547 16
+'Exchange Date 2 CCYYMMDD 548-555 8
+'Exchange Rate 2 5.5 556-571 16
+'Exchange Date 3 CCYYMMDD 572-579 8
+'Exchange Rate 3 5.5 580-595 16
+'Exchange Date 4 CCYYMMDD 596-603 8
+'Exchange Rate 4 5.5 604-619 16
+'Price Category 620-621 2
+'Carrier Code 622-627 6
+'3rd Party Freight Customer 628-634 7
+'Filler Not In Use 635-831 197
+'Location Code 832-833 2
+F.Intrinsic.String.RPad(" "," ",310,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sSOA",V.Local.sHeader)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("SOA_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.SOA.End
+
+Program.Sub.SOB.Start
+F.Intrinsic.Control.SetErrorHandler("SOB_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sHeader.Declare(String)
+V.Local.sText.Declare(String)
+V.Local.sTemp.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Order Number 1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler 1 Not In Use 8-10 3
+'Record Type Always B 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   B",V.Local.sHeader)
+
+'Customer Number 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Customer Ship-To ID 18-23 6
+F.Intrinsic.String.RPad(V.Local.sText(3)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 24-29 6
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Name 30-59 30
+F.Intrinsic.String.RPad(V.Local.sText(4)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Address 1 60-89 30
+F.Intrinsic.String.RPad(V.Local.sText(5)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Address 2 90-119 30
+'Bill-To Address 3 120-149 30
+'Bill-To Address 4 150-179 30
+'Bill-To Address 5 180-209 30
+F.Intrinsic.String.RPad(" "," ",120,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To City 210-224 15
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To State 225-226 2
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Zip 227-239 13
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",13,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Country 240-251 12
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",12,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Bill-To Attention 252-281 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Contact Name 282-311 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Contact Phone 312-331 20
+F.Intrinsic.String.RPad(" "," ",130,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Contact Email 332-431 100
+F.Intrinsic.String.RPad(" "," ",100,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'International Address Flag Y/N 432-432 1
+F.Intrinsic.String.RPad(V.Local.sText(16)," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sSOB",V.Local.sHeader)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("SOB_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.SOB.End
+
+Program.Sub.SOC.Start
+F.Intrinsic.Control.SetErrorHandler("SOC_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sHeader.Declare(String)
+V.Local.sText.Declare(String)
+V.Local.sTemp.Declare(String)
+
+V.Local.sText.Set(V.Args.sLine)
+F.Intrinsic.String.SplitCSV(V.Local.sText,V.Local.sText)
+
+'Order Number  1-7 7
+F.Intrinsic.String.RPad(V.Local.sText(0),"0",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Filler Not In Use 8-10 3
+'Record Type Always C 11-11 1
+F.Intrinsic.String.Concat(V.Local.sHeader,"   C",V.Local.sHeader)
+
+'Customer Number 12-17 6
+F.Intrinsic.String.RPad(V.Local.sText(2)," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Customer Ship to ID 18-23 6
+'Filler Not In Use 24-29 6
+F.Intrinsic.String.RPad(" "," ",12,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Name 30-59 30
+F.Intrinsic.String.RPad(V.Local.sText(4)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Address 1 60-89 30
+F.Intrinsic.String.RPad(V.Local.sText(5)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Address 2 90-119 30
+'Ship-To Address 3 120-149 30
+'Ship-To Address 4 150-179 30
+'Ship-To Address 5 180-209 30
+F.Intrinsic.String.RPad(" "," ",120,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To City 210-224 15
+F.Intrinsic.String.RPad(V.Local.sText(10)," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To State 225-226 2
+F.Intrinsic.String.RPad(V.Local.sText(11)," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Zip 227-239 13
+F.Intrinsic.String.RPad(V.Local.sText(12)," ",13,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Country 240-251 12
+F.Intrinsic.String.RPad(V.Local.sText(13)," ",12,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Ship-To Attention 252-281 30
+F.Intrinsic.String.RPad(V.Local.sText(14)," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Salesman 282-284 3
+'Branch 285-286 2
+'Area 287-288 2
+'Freight Zone 289-298 10
+'Ship Via 299-318 20
+'Discount 1.4 319-334 16
+'Price Class 335-335 1
+'Price Class Discount 1.4 336-351 16
+'Commission Rate Type 352-356 5
+'Normal GL Account 357-371 15
+'Tax State 372-373 2
+'Tax Authority 1 374-376 3
+'Tax Authority 2 377-379 3
+'Tax Authority 3 380-382 3
+'Tax Authority 4 383-385 3
+'Tax Authority 5 386-388 3
+'Tax Authority 6 389-391 3
+'Tax Authority 7 392-394 3
+'Tax Authority 8 395-397 3
+'Tax Authority 9 398-400 3
+'Tax Authority 10 401-403 3
+'Tax Apply Flag 1 404-404 1
+'Tax Apply Flag 2 405-405 1
+'Tax Apply Flag 3 406-406 1
+'Tax Apply Flag 4 407-407 1
+'Tax Apply Flag 5 408-408 1
+'Tax Apply Flag 6 409-409 1
+'Tax Apply Flag 7 410-410 1
+'Tax Apply Flag 8 411-411 1
+'Tax Apply Flag 9 412-412 1
+'Tax Apply Flag 10 413-413 1
+'Contract Number 414-419 6
+F.Intrinsic.String.RPad(" "," ",138,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'International Address Flag Y – International Ship To Address Blank – Non-International Ship To Address Y/N 420-420 1
+F.Intrinsic.String.RPad(V.Local.sText(17)," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+'Carrier Code 421-426 6
+'3rd Party Freight Customer  427-433 7
+'Filler Not In Use 424-831 398
+F.Intrinsic.String.RPad(" "," ",411,V.Local.sTemp)
+F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+
+F.Intrinsic.Debug.Stop
+
+F.Intrinsic.Variable.AddRV("sSOC",V.Local.sHeader)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("SOC_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.SOC.End
+
+Program.Sub.FilePath.Start
+F.Intrinsic.Control.If(V.Ambient.isintaskscheduler,=,False)
+
+	F.Intrinsic.Control.SelectCase(V.system.ComputerName)
+		F.Intrinsic.Control.Case("USVGSAPPWS0801")
+			V.Global.sServer.Set("\\USVGSTERMWS0801\")
+                F.Intrinsic.Control.Case(,"USVGSAPPWS0801")
+			V.Global.sServer.Set("\\USVGSTERMWS0801\")
+                F.Intrinsic.Control.Case("VCE-WPGSAPP01")
+			V.Global.sServer.Set("\\VCE-WPGSTERM01\")
+                F.Intrinsic.Control.Case("USVGSTERMWS0801")
+			V.Global.sServer.Set("\\USVGSTERMWS0801\")
+                F.Intrinsic.Control.Case("VCE-WPGSTERM01")
+			V.Global.sServer.Set("\\VCE-WPGSTERM01\")
+	F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.Else
+
+	F.Intrinsic.Control.SelectCase(V.System.ComputerName)
+		F.Intrinsic.Control.Case("USVGSAPPWS0801")
+			V.Global.sServer.Set("L:\")
+		F.Intrinsic.Control.Case("VCE-WPGSAPP01")
+			V.Global.sServer.Set("L:\")
+		 F.Intrinsic.Control.Case("USVGSTERMWS0801")
+			V.Global.sServer.Set("E:\")
+		F.Intrinsic.Control.Case("VCE-WPGSTERM01")
+			V.Global.sServer.Set("E:\")
+	F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.EndIf
+
+Program.Sub.FilePath.End
+
+Program.Sub.Check_Cust.Start
+F.Intrinsic.Control.SetErrorHandler("Check_Cust_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.bRet.Declare(Boolean)
+V.Local.sRet.Declare(String)
+
+F.Intrinsic.Variable.UDTSeek(V.uGlobal.uCust!Cust,V.Args.cust,5,V.Local.sRet)
+
+F.Intrinsic.Control.If(V.Local.sRet,<>,"")
+	F.Intrinsic.Variable.AddRV("bret","True")
+F.Intrinsic.Control.Else
+	F.Intrinsic.Variable.AddRV("bret","False")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Check_Cust_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Check_Cust.End
+
+Program.Sub.Load_UDT.Start
+F.Intrinsic.Control.SetErrorHandler("Load_UDT_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst","Select CUSTOMER from V_CUSTOMER_MASTER")
+F.Intrinsic.Variable.LoadUDTFromRecordset("conx","rst","uGlobal.uCust",False,100000)
+
+F.ODBC.conx!rst.Close
+F.ODBC.Connection!conx.Close
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Load_UDT_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Load_UDT.End
+
+Program.Sub.ErrorLog.Start
+F.Intrinsic.Control.SetErrorHandler("ErrorLog_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSource.Declare(String)
+V.Local.sTarget.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.iLen.Declare(Long)
+V.local.sSubject.Declare(String)
+V.Local.sBody.Declare(String)
+V.Local.iRet.Declare(Long)
+V.Local.iUser.Declare(Long)
+
+V.Local.sSource.Set(V.Args.sSource)
+V.Local.sTarget.Set(V.Args.sTarget)
+
+F.Intrinsic.String.InstrRev(V.Local.sSource,"\",V.Local.iRet)
+F.Intrinsic.String.Len(V.Local.sSource,V.Local.iLen)
+F.Intrinsic.Math.Sub(V.Local.iLen,V.Local.iRet,V.Local.iRet)
+F.Intrinsic.String.Right(V.Local.sSource,V.Local.iRet,V.Local.sFile)
+
+F.Intrinsic.String.Concat("QUOTE ",V.Local.sFile," failed to load",V.local.sSubject)
+F.Intrinsic.String.Concat("QUOTE file failed to load due to error. Please review \\DCT_QUOTE\ERROR_LOG\",V.caller.CompanyCode,V.Local.sBody)
+
+F.Global.Security.GetUserID(V.Caller.User,V.Caller.CompanyCode,V.Local.iUser)
+
+F.Global.Messaging.QueueMessage(V.Caller.CompanyCode,V.Local.iUser,"ATG_VCE_SO_QTE_Upload.gas",V.Local.sSubject,"DCT.response@vce.com*!*DCT.response@vce.com","DCT.response@vce.com",V.Local.sBody)
+
+F.Intrinsic.File.MoveFile(V.Local.sSource,V.Local.sTarget,V.Local.iRet)
+
+
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("ErrorLog_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3810_VCE_SO_QTE_Upload.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.ErrorLog.End
+
+Program.Sub.Comments.Start
+${$0$}$ATG_INV_AllocationUpload$}$JESSICA$}$4/10/2012
+Program.Sub.Comments.End
+
